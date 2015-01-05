@@ -1,19 +1,21 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
-import itertools
-from termcolor import colored, cprint
+
 #import colorama; colorama.init() # this makes termcolor work on windows
+import itertools
+from operator import mul
+from termcolor import colored, cprint
 
 '''TODO
+* Creature buffs, skills, and passives
+  - passives need to be implemented (perhaps easiest as a type of skill that activates once at the start of match)
 * REPL with player targetting, SS activation, and category selection
 * External interaction with Anki (show review, get feedback)
-* Creature buffs, skills, and passives
-  - buffs need to be applied to stats
-  - passives need to be implemented (perhaps easiest as a type of skill that activates once at the start of match)
 * Extend Battle to get config from adventure
   - start with a simple trash encounter + boss fight style adventures, refactoring Battle as needed
 * Collection, creature progression (levels/evolutions), and deck mangement
 '''
+
 
 ################################################################################
 ## Debug
@@ -22,8 +24,28 @@ DEBUG_TARGETTING = True
 def debug( txt ): print colored( txt, 'white', 'on_blue' )
 
 ################################################################################
+## Hofs
+################################################################################
+def product( xs ): return reduce( mul, xs, 1 )
+
+################################################################################
 ## Skills and Buffs
 ################################################################################
+class Buffs:
+    '''Accessing buffs.foo provides a list of all .foo that exist in any buff'''
+    def __init__( self ):
+        self._buffs = []
+
+    def __getattr__( self, name ): return [ getattr( b, name ) for b in self._buffs if getattr( b, name ) ]
+
+    def _append( self, b ): self._buffs.append( b )
+
+    def _update( self ):
+        for b in self._buffs: b.update()
+        self._buffs = [ b for b in self._buffs if b.isValid ]
+
+    def __str__( self ): return self._buffs.__str__()
+
 class Buff:
     '''Represents a number of stats modifiers (default to None if not defined)
     that aren't applied once a buff runs out (TTL<1) or the owner causing the
@@ -42,14 +64,7 @@ class Buff:
         self._TTL = ttl
         self._kwargs = kwargs
 
-    def __str__( self ):  return '<B %s TTL:%s B>' % ( self._kwargs, self._TTL )
-    def __repr__( self ): return self.__str__()
-
-    def __getattr__2( self, name ):
-        if name in self._kwargs and self.isValid:
-            return self._kwargs[ name ]
-        else:
-            return None
+    def __getattr__( self, name ): return self._kwargs[ name ] if name in self._kwargs and self.isValid else None
 
     @property
     def isValid( self ): return self._owner.isAlive and (self._TTL is None or self._TTL > 0)
@@ -57,6 +72,9 @@ class Buff:
     def update( self ):
         if self._TTL is not None:
             self._TTL -= 1
+
+    def __str__( self ):  return '<Buff:TTL:%s:%s>' % ( self._TTL, self._kwargs )
+    def __repr__( self ): return self.__str__()
 
 class Skill:
     def __init__( self, **kwargs ):
@@ -83,10 +101,18 @@ class Skill:
         if not correct:
             self._numASprocedInARow -= 1
 
+    def __str__( self ):
+        return '<%s:%s>' % (self.__class__.__name__, self.kwargs)
+
     # this hook runs before attack phase iff proced
     def onAnswer( self ): pass
     # this hook runs as attack happens iff proced
     def onAttack( self, targ ): pass
+
+    # this is checked during user REPL; no side-effects allowed
+    def canActivate( self ): return False
+    # this hook runs when user requests
+    def onActivate( self ): pass
 
 class BuffSelf( Skill ): # BuffParams
     def onAnswer( self ):
@@ -146,13 +172,23 @@ class BuffSelfAfterN( Skill ): # BuffParams, N
 
             self.me.addBuff( self.kwargs ) # this includes N, which is okay but annoying...
 
+class NukeSingle( Skill ): # nukeMult, N
+    def canActivate( self ): return self._numASproced >= self.N
+    def onActivate( self ):
+        self._numASproced = 0
+
+        dmg = self.me.atk * self.nukeMult
+        es = [ e for e in self.me.enemies if e.isTargettable ]
+        for e in es:
+            e.takeDamage( dmg, self.me.atkType )
+
 ################################################################################
 ## Creature DB
 ################################################################################
 CREATURE_DB = {
-    'Alice':    ( 500, 250, 'Fire', 1, BuffSameType( dmgFlat=100, ttl=2 ) ),
+    'Alice':    ( 500, 250, 'Fire', 1, BuffSameType( dmgFlat=100, ttl=2 ), NukeSingle( nukeMult=1.15, N=2 ) ),
     'Bob':      ( 450, 300, 'Lightning', 2, BuffSameType( dmgFlat=50, dmgMult=1.1 ) ),
-    'Charlie':  ( 550, 200, 'Water', 2, BuffSelf( dmgMult=1.2 ) ),
+    'Charlie':  ( 550, 200, 'Water', 2, BuffSelf( dmgMult=1.2 ), NukeSingle( nukeMult=1.50, N=3 ) ),
     'Boss':     ( 2000, 200, 'Fire', 3, UndividedAOE( aoeMult=1.0 ) ),
     'David':    ( 1000, 100, 'Water', 1, BuffSelfAfterN( dmgFlat=100, N=1 ) ),
     }
@@ -224,12 +260,20 @@ class Battle:
 
         # 1-3. TODO: CLI repl to handle user target suggestion and SS activation until category selection
         print self.show()
+
+            # choosen random category
         from random import randint
         n = randint( 1, 4 )
 
         chosenOption = self.testOptions[ n ]
         self.testOptions[ n ] = None
         debug( 'OPTION: %s' % chosenOption )
+
+            # activate specials randomly
+        for c in self.allies:
+            if c.isAlive and c.specialSkill and c.specialSkill.canActivate():
+                c.specialSkill.onActivate()
+                debug( 'ACTIVATE: %s' % c.idname )
 
         # 4. user-test
         testPassed = True
@@ -269,6 +313,7 @@ class Creature:
             'Lightning':    { 'Fire':0.5, 'Water':1.5, 'Lightning':1.0, },
             }
     NEXT_ID = itertools.count(0)
+
     def __init__( self, name, hp, atk, atkType, atkCooldown, answerSkill=None, specialSkill=None, useCooldowns=True ):
         self.name = name
         self.id = Creature.NEXT_ID.next()
@@ -295,7 +340,7 @@ class Creature:
         self._numASproced = 0
         self._numASprocedInARow = 0
 
-        self.buffs = []
+        self.buffs = Buffs()
 
     def update( self, allies, enemies, correct, asProced, acting ):
         '''Update list of ally and enemy creatures,
@@ -306,10 +351,10 @@ class Creature:
         self._allies = allies
         self._enemies = enemies
 
-        for b in self.buffs: b.update()
-        self.buffs = [ b for b in self.buffs if b.isValid ]
+        self.buffs._update()
 
-        self.answerSkill.update( correct, asProced, acting )
+        if self.answerSkill:    self.answerSkill.update( correct, asProced, acting )
+        if self.specialSkill:   self.specialSkill.update( correct, asProced, acting )
 
         if acting and correct:
             self._numAnsweredCorrectly += 1
@@ -322,14 +367,19 @@ class Creature:
             self._numASprocedInARow = 0
 
     def addBuff( self, owner, buffParams ):
-        self.buffs.append( Buff( owner, **buffParams ) )
+        self.buffs._append( Buff( owner, **buffParams ) )
 
-    #TODO: factor in buffs
     ##### Stats
     @property
-    def atk( self ):    return self._atk
+    def atk( self ):
+        flat = self._atk + sum( self.buffs.dmgFlat )
+        mult = product( self.buffs.dmgMult )
+        return flat * mult
     @property
-    def maxHP( self ):  return self._maxHP
+    def maxHP( self ):
+        flat = self._maxHP + sum( self.buffs.hpFlat )
+        mult = product( self.buffs.hpMult )
+        return flat * mult
     @property
     def curHP( self ):  return self.maxHP - self._hp_dmg_taken
 
