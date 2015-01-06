@@ -20,6 +20,9 @@ These are supported by AnkiRPG:
 1. AnkiRPG - The test is reviewing a flashcard in Anki, and the color option is the card's model/deck (ie. "category").
 2. NoTest - There is no player performed test/color and instead party members use simple cooldowns for attacks. This is what computer opponents use.
 
+
+## Playing
+----------
 ##### Install
 -------------
 You need:
@@ -27,19 +30,28 @@ You need:
 * termcolor (https://pypi.python.org/pypi/termcolor)
 * colorama (https://pypi.python.org/pypi/colorama) [Only on Windows and only if you want color]
 
+AnkiRPGServer.py must be placed into your Anki addons directory. It creates a server to allow Anki to be remotely controlled. The port may be tweaked in the source if truly needed.
+
+##### Usage
+-----------
+This is highly subject to change!
+
+main.py invokes the game, which currently caters to running a single adventure with a preset party and then exiting. A global at the top control whether to allow the player to control their party or to have it run the combats in a non-interactive fashion according to a basic AI (for ease of testing). Another controls whether to use the 'Anki' or 'NoTest' method for player tests.
+
 ## TODO
 -------
 * External interaction with Anki
-  * Tell Anki server plugin to do card rep and reply with user's selected ease, which will be used as Player Test result
+  * Tell Anki server plugin to do card rep and reply with user's selected ease, which will be used as Player Test result. Currently the player just auto succeeds player tests.
   * [future] Suggest to Anki to review due card vs learn new card, based on whether Player Test option is double/tri colored
   * [future] Let player configure various decks he wants to use as categories for Player Test options
 * Creature collection progression and management
-  * Adventures should reward xp for creatures in party or give you new creatures, which can then be combined with others to create new/better/different ones (a la Shin Megami Tensei)
+  * Adventures should reward xp for creatures in party or give you new creatures, which can then be combined with others to create new/better/different ones (a la Shin Megami Tensei).
   * Allow player to control which creatures are in his active party
-  * Persist player information across games
+  * Persist progress across games. At least collection, but possible Adventure/Battle state as well.
 * Quest hub with various adventures for the player to choose from
   * Random adventure of a user specified difficulty level
   * Handmade sequences of adventures with some element of story and/or progression to them
+  * [future] Labyrinth with various encounters and treasures spread throughout. Find 3 keys to unlock boss room and complete.
 * [future] Multiplayer - tricky since ultimately we rely on the honor system for Player Test results
   * Head to Head
   * Tournament against ghosts of recent players / friends
