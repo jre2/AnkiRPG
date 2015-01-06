@@ -26,7 +26,8 @@ These are supported by AnkiRPG:
 ##### Install
 -------------
 You need:
-* python2.7
+* python 2.7
+* Anki 2.0.31+
 * ~~termcolor (https://pypi.python.org/pypi/termcolor)~~
 * ~~colorama (https://pypi.python.org/pypi/colorama) [Only on Windows and only if you want color]~~
 
