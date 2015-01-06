@@ -83,9 +83,11 @@ class Creature:
             self._numASprocedInARow = 0
 
     def addBuff( self, owner, buffParams ):
+        '''Creature gains buff specified by buffParams. It is lost if owner dies'''
         self.buffs._append( Buff( owner, **buffParams ) )
 
     def doPassives( self ):
+        '''Trigger all passive skills'''
         for p in self._passives: p.onPassive()
 
     ##### Stats
@@ -123,17 +125,22 @@ class Creature:
     def calcDmg( self, eType ):     return self.atk * self.calcDmgMult( eType )
 
     def takeDamage( self, dmg, eType ):
+        '''Take dmg of the specified type. Type advantage is factored'''
         mult = Creature.ATTACK_TYPE_DAMAGE_MULT[ eType ][ self.atkType ]
         self._hp_dmg_taken += dmg * mult
 
     def healDamage( self, dmg ):
-        self._hp_dmg_taken = max( 0, self._hp_dmg_taken - hp ) # no overheal
+        '''Heal the specified amount of dmg. No overhealing.'''
+        self._hp_dmg_taken = max( 0, self._hp_dmg_taken - hp )
 
     ##### Attacking
     def onAnswer( self ):
+        '''Trigger onAnswer portion of Answer Skill'''
         self.answerSkill.onAnswer()
 
     def doAttack( self, procAS ):
+        '''Perform an attack if off cooldown and a valid target exists.
+        If procAS, attack will trigger onAttack portion of Answer Skill'''
         if not self.canAttack: return
 
         targ = self.getTarget()
@@ -146,8 +153,8 @@ class Creature:
         self.atkTTA = self.atkCooldown
 
     def attackTarget( self, targ, procAS ):
-        '''Run answer skill's onAttack if it was proced,
-        then applies damage to target like normal unless requested not to'''
+        '''Run answer skill's onAttack if it was proced, then apply dmg to
+        target like normal unless requested not to'''
         if procAS and self.answerSkill:
             r = self.answerSkill.onAttack( targ )
             if r == 'dont run default': return
@@ -156,6 +163,8 @@ class Creature:
 
     ##### Targetting
     def getTarget( self ):
+        '''Return best target to attack, if there is one.
+        If player has set a target, use that if possible.'''
         if self.suggestedTarget and self.suggestedTarget.isTargettable:
             return self.suggestedTarget
 
@@ -165,17 +174,15 @@ class Creature:
         if es: return es[0]
 
     ##### Rendering
-    def typeColored( self, txt ):
-        d = { 'Fire':'red', 'Water':'blue', 'Ligtning':'yellow' }
-        return colored( txt, d[ self.atkType ] )
-
     def showBrief( self ):
+        '''Render basic stats to string'''
         s = '{name} {curHP} | {atk}[{atkType}]{atkTTA}'.format(
             name = self.idname, curHP = self.curHP,
             atk = self.atk, atkType = self.atkType[0], atkTTA = self.atkTTA, )
         return colored( s, 'white' if self.isAlive else 'red' )
 
     def showDetailed( self ):
+        '''Render detailed stats to string'''
         s = '{name} {curHP}/{maxHP} HP | {atk}[{atkType}]{atkTTA} | AS: {answerSkill} SS: {specialSkill}'.format(
             name = self.idname, curHP = self.curHP, maxHP = self.maxHP,
             atk = self.atk, atkType = self.atkType, atkTTA = self.atkTTA,

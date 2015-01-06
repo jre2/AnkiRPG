@@ -8,7 +8,8 @@ from   operator import mul
 ################################################################################
 def product( xs ): return reduce( mul, xs, 1 )
 
-def weightedChoice( cws ): # [(Choice,Weight)] -> Rand Choice
+def weightedChoice( cws ):
+    ''':: [(Choice,Weight)] -> Rand Choice'''
     from random import random
     from bisect import bisect
 

@@ -50,7 +50,9 @@ class BattleCLI( cmd.Cmd ):
                 return
 
             debug( 'ACTIVATE: %s' % c.idname )
-            c.specialSkill.onActivate()
+            r = c.specialSkill.onActivate()
+            if r == False:
+                print 'The skill has no effect'
 
         except (ValueError,IndexError):
             print 'Invalid creature id', cidStr

@@ -11,17 +11,18 @@ class Buffs:
     def _append( self, b ): self._buffs.append( b )
 
     def _update( self ):
-        for b in self._buffs: b.update()
-        self._buffs = [ b for b in self._buffs if b.isValid ]
+        '''Per-round update of all buffs, culling any that are no longer valid'''
+        for b in self._buffs: b._update()
+        self._buffs = [ b for b in self._buffs if b._isValid ]
     def _clear( self ):
         self._buffs = []
 
     def __str__( self ): return self._buffs.__str__()
 
 class Buff:
-    '''Represents a number of stats modifiers (default to None if not defined)
-    that aren't applied once a buff runs out (TTL<1) or the owner causing the
-    buff is no longer alive. TTL=None implies infinite duration
+    '''Represents a number of stats modifiers (which default to None if not defined)
+    that aren't applied once a buff runs out (TTL<1) or the owner causing the buff
+    is no longer alive. TTL=None implies infinite duration.
     Ex:
     > b = Buff( dmgFlat=100 )
     > b.dmgFlat
@@ -36,12 +37,12 @@ class Buff:
         self._TTL = ttl
         self._kwargs = kwargs
 
-    def __getattr__( self, name ): return self._kwargs[ name ] if name in self._kwargs and self.isValid else None
+    def __getattr__( self, name ): return self._kwargs[ name ] if name in self._kwargs and self._isValid else None
 
     @property
-    def isValid( self ): return self._owner.wasAlive and (self._TTL is None or self._TTL > 0)
+    def _isValid( self ): return self._owner.wasAlive and (self._TTL is None or self._TTL > 0)
 
-    def update( self ):
+    def _update( self ):
         if self._TTL is not None:
             self._TTL -= 1
 

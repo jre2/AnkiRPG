@@ -1,6 +1,6 @@
 #-*- coding: utf-8 -*-
 from   Creature import Creature
-from   Skills import *
+from   Skills   import *
 
 CREATURE_DB = {
     'Alice':    ( 500, 250, 'Fire', 1, BuffSameType( dmgFlat=100, ttl=2 ), NukeSingle( nukeMult=1.15, N=2 ) ),

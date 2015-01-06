@@ -1,6 +1,6 @@
 #-*- coding: utf-8 -*-
 from   Adventure import Adventure
-from   Creatures import mkCreature, mkCreatures
+from   Creatures import mkCreatures
 
 class SingleBattleAdventure( Adventure ):
     def getNextEncounter( self ):

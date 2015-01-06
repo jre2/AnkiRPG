@@ -91,4 +91,4 @@ class PassiveBuffSameType( Skill ): # BuffParams
             if a.atkType == self.me.atkType and a.isAlive:
                 a.addBuff( self.me, self.kwargs )
 
-MagicMissile = NukeSingle
+class MagicMissile( NukeSingle ): pass
