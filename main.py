@@ -7,8 +7,6 @@ from operator import mul
 from termcolor import colored, cprint
 
 '''TODO
-* Creature buffs, skills, and passives
-  - passives need to be implemented (perhaps easiest as a type of skill that activates once at the start of match)
 * REPL with player targetting, SS activation, and category selection
 * External interaction with Anki (show review, get feedback)
 * Extend Battle to get config from adventure
@@ -67,7 +65,7 @@ class Buff:
     def __getattr__( self, name ): return self._kwargs[ name ] if name in self._kwargs and self.isValid else None
 
     @property
-    def isValid( self ): return self._owner.isAlive and (self._TTL is None or self._TTL > 0)
+    def isValid( self ): return self._owner.wasAlive and (self._TTL is None or self._TTL > 0)
 
     def update( self ):
         if self._TTL is not None:
@@ -170,7 +168,7 @@ class BuffSelfAfterN( Skill ): # BuffParams, N
         if self._numASproced >= self.N:
             self._numASproced = 0
 
-            self.me.addBuff( self.kwargs ) # this includes N, which is okay but annoying...
+            self.me.addBuff( self.me, self.kwargs ) # this includes N, which is okay but annoying... could remove it if we care
 
 class NukeSingle( Skill ): # nukeMult, N
     def canActivate( self ): return self._numASproced >= self.N
@@ -182,12 +180,22 @@ class NukeSingle( Skill ): # nukeMult, N
         for e in es:
             e.takeDamage( dmg, self.me.atkType )
 
+class PassiveBuffSelf( Skill ): # BuffParams
+    def onPassive( self ):
+        self.me.addBuff( self.me, self.kwargs )
+
+class PassiveBuffSameType( Skill ): # BuffParams
+    def onPassive( self ):
+        for a in self.me.allies:
+            if a.atkType == self.me.atkType and a.isAlive:
+                a.addBuff( self.me, self.kwargs )
+
 ################################################################################
 ## Creature DB
 ################################################################################
 CREATURE_DB = {
     'Alice':    ( 500, 250, 'Fire', 1, BuffSameType( dmgFlat=100, ttl=2 ), NukeSingle( nukeMult=1.15, N=2 ) ),
-    'Bob':      ( 450, 300, 'Lightning', 2, BuffSameType( dmgFlat=50, dmgMult=1.1 ) ),
+    'Bob':      ( 450, 300, 'Lightning', 2, BuffSameType( dmgFlat=50, dmgMult=1.1 ), NukeSingle( nukeMult=1.25, N=7 ), [PassiveBuffSelf( hpFlat=110 )] ),
     'Charlie':  ( 550, 200, 'Water', 2, BuffSelf( dmgMult=1.2 ), NukeSingle( nukeMult=1.50, N=3 ) ),
     'Boss':     ( 2000, 200, 'Fire', 3, UndividedAOE( aoeMult=1.0 ) ),
     'David':    ( 1000, 100, 'Water', 1, BuffSelfAfterN( dmgFlat=100, N=1 ) ),
@@ -204,7 +212,9 @@ class Battle:
         self.testType = 'Anki'
 
         self.allies  = self.mkCreatures([ 'Alice', 'Alice', 'Bob', 'Charlie' ], cds= self.testType == 'NoTest' )
-        self.enemies = self.mkCreatures([ 'Alice', 'Boss', 'Charlie' ], cds= True )
+        self.enemies = self.mkCreatures([ 'Alice', 'Boss', 'Charlie', 'David' ], cds= True )
+
+        self.onBattleStart()
 
     def show( self ):
         banner = ( ' Round %d ' % self.numRounds ).center( 80, '#' )
@@ -245,20 +255,32 @@ class Battle:
         c = weightedChoice( [ ('Fire',25), ('Water',25), ('Lightning',25), ('Fire/Water',7), ('Fire/Lightning',7), ('Water/Lightning',7), ('Fire/Water/Lightning',4) ] )
         return c
 
+    def onBattleStart( self ):
+        self.applyPassives()
+
+    def applyPassives( self ):
+        for c in self.allies + self.enemies:
+            c.doPassives()
+
     def step( self ):
         '''
-        0. generate color coded categories
-        1. user MAY assign suggested targets
-        2. user MAY activate user-activated abilities
-        3. user MUST choose color coded category
-        4. user MUST perform user-test (eg. flashcard review). result :: (Success?, ProcAnswerSkill?)
-        5. resolve combat round based on user-test result
-        6. post-round book keeping
+        1. pre-round book keeping
+        2. generate color coded categories
+        3. user MAY assign suggested targets
+        4. user MAY activate user-activated abilities
+        5. user MUST choose color coded category
+        6. user MUST perform user-test (eg. flashcard review). result :: (Success?, ProcAnswerSkill?)
+        7. resolve combat round based on user-test result
+        8. post-round book keeping
         '''
-        # 0. generate color coded categories
+        # 1. pre-round book keeping
+        for c in self.allies:   c.preRoundUpdate( self.allies, self.enemies )
+        for c in self.enemies:  c.preRoundUpdate( self.enemies, self.allies )
+
+        # 2. (re)generate test options
         self.refillTestOptions()
 
-        # 1-3. TODO: CLI repl to handle user target suggestion and SS activation until category selection
+        # 3-5. TODO: CLI repl to handle user target suggestion and SS activation until category selection
         print self.show()
 
             # choosen random category
@@ -275,7 +297,7 @@ class Battle:
                 c.specialSkill.onActivate()
                 debug( 'ACTIVATE: %s' % c.idname )
 
-        # 4. user-test
+        # 6. user-test
         testPassed = True
         testProcedAnswerSkill = True
         #TODO: launch/control external Anki instance to review a card and get feedback
@@ -283,24 +305,25 @@ class Battle:
         if self.testType == 'Anki':
             pass
 
-        # 5. resolve combat
+        # 7. resolve combat
             # figure out which creatures get to act
         actingAllies = [ c for c in self.allies if c.canAttack and c.atkType in chosenOption ]
         actingEnemies = [ c for c in self.enemies if c.canAttack ]
         acting = actingAllies + actingEnemies
 
-            # update creatures, their buffs, and their skills
-        for c in self.allies:   c.update( self.allies, self.enemies, testPassed, testProcedAnswerSkill, c in acting )
-        for c in self.enemies:  c.update( self.enemies, self.allies, True, True, c in acting )
+            # update creatures with test results (eg. for skill charges)
+        for c in self.allies:   c.testUpdate( testPassed, testProcedAnswerSkill, c in acting )
+        for c in self.enemies:  c.testUpdate( True, True, c in acting )
 
-            # for those that get to get, proc onAnswer then attack with them
+            # for those that get to, proc onAnswer and then attack with them
         for c in actingAllies:  c.onAnswer()
         for c in actingAllies:  c.doAttack( testProcedAnswerSkill )
 
+            # if enemy could use specials, they'd use them now
         for c in actingEnemies: c.onAnswer()
         for c in actingEnemies: c.doAttack( True )
 
-        # 6. book keeping
+        # 8. post-round book keeping
         self.numRounds += 1
 
 ################################################################################
@@ -314,7 +337,7 @@ class Creature:
             }
     NEXT_ID = itertools.count(0)
 
-    def __init__( self, name, hp, atk, atkType, atkCooldown, answerSkill=None, specialSkill=None, useCooldowns=True ):
+    def __init__( self, name, hp, atk, atkType, atkCooldown, answerSkill=None, specialSkill=None, passives=None, useCooldowns=True ):
         self.name = name
         self.id = Creature.NEXT_ID.next()
         self.idname = '%d %10s' % ( self.id, '[%s]' % self.name )
@@ -322,6 +345,7 @@ class Creature:
         self._maxHP = hp
         self._curHP = hp
         self._hp_dmg_taken = 0
+        self.wasAlive = True # whether we were alive last round; mostly used to see when buffs die out
 
         self._atk = atk
         self.atkType = atkType
@@ -340,12 +364,15 @@ class Creature:
         self._numASproced = 0
         self._numASprocedInARow = 0
 
+        self._passives = [ p.new( self ) for p in passives ] if passives is not None else []
+
         self.buffs = Buffs()
 
-    def update( self, allies, enemies, correct, asProced, acting ):
-        '''Update list of ally and enemy creatures,
-        whether we answered the test correctly and whether it was sufficient to proc answer skill,
-        and whether this creature in particular gets to act'''
+
+    def preRoundUpdate( self, allies, enemies ):
+        '''Update list of ally and enemy creatures, reduce atk cooldowns, and update buffs'''
+        self.wasAlive = self.isAlive
+
         self.atkTTA = max( 0, self.atkTTA - 1 )
 
         self._allies = allies
@@ -353,6 +380,8 @@ class Creature:
 
         self.buffs._update()
 
+    def testUpdate( self, correct, asProced, acting ):
+        '''Track answer totals and streaks so skills can charge abilities based on those'''
         if self.answerSkill:    self.answerSkill.update( correct, asProced, acting )
         if self.specialSkill:   self.specialSkill.update( correct, asProced, acting )
 
@@ -368,6 +397,9 @@ class Creature:
 
     def addBuff( self, owner, buffParams ):
         self.buffs._append( Buff( owner, **buffParams ) )
+
+    def doPassives( self ):
+        for p in self._passives: p.onPassive()
 
     ##### Stats
     @property
