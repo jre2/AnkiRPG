@@ -9,9 +9,8 @@ from termcolor import colored, cprint
 
 '''TODO
 * External interaction with Anki (show review, get feedback)
-* Extend Battle to get config from adventure
-  - start with a simple trash encounter + boss fight style adventures, refactoring Battle as needed
 * Collection, creature progression (levels/evolutions), and deck mangement
+* Quest hub with various adventures you can choose to go on
 '''
 
 
@@ -19,7 +18,8 @@ from termcolor import colored, cprint
 ## Debug
 ################################################################################
 DEBUG_TARGETTING = True
-DEBUG_NON_INTERACTIVE = False
+DEBUG_NON_INTERACTIVE = True
+TEST_TYPE = 'Anki' # 'NoTest'
 
 def debug( txt ): print colored( txt, 'white', 'on_blue' )
 
@@ -104,7 +104,9 @@ class BattleCLI( cmd.Cmd ):
 ## Skills and Buffs
 ################################################################################
 class Buffs:
-    '''Accessing buffs.foo provides a list of all .foo that exist in any buff'''
+    '''Accessing buffs.foo provides a list of all .foo that exist in any buff
+    Container manipulation functions are prefixed by underscore but don't imply private
+    '''
     def __init__( self ):
         self._buffs = []
 
@@ -115,6 +117,8 @@ class Buffs:
     def _update( self ):
         for b in self._buffs: b.update()
         self._buffs = [ b for b in self._buffs if b.isValid ]
+    def _clear( self ):
+        self._buffs = []
 
     def __str__( self ): return self._buffs.__str__()
 
@@ -160,8 +164,8 @@ class Skill:
 
     def new( self, owner ):
         '''Creature instances use this to create a new instance of the skill'''
-        from copy import deepcopy
-        s = deepcopy( self )
+        from copy import copy
+        s = copy( self )
         s.me = owner
         return s
 
@@ -277,39 +281,82 @@ class PassiveBuffSameType( Skill ): # BuffParams
             if a.atkType == self.me.atkType and a.isAlive:
                 a.addBuff( self.me, self.kwargs )
 
+MagicMissile = NukeSingle
+
 ################################################################################
 ## Creature DB
 ################################################################################
 CREATURE_DB = {
     'Alice':    ( 500, 250, 'Fire', 1, BuffSameType( dmgFlat=100, ttl=2 ), NukeSingle( nukeMult=1.15, N=2 ) ),
     'Bob':      ( 450, 300, 'Lightning', 2, BuffSameType( dmgFlat=50, dmgMult=1.1 ), NukeSingle( nukeMult=1.25, N=7 ), [PassiveBuffSelf( hpFlat=110 )] ),
-    'Charlie':  ( 550, 200, 'Water', 2, BuffSelf( dmgMult=1.2 ), NukeSingle( nukeMult=1.50, N=3 ) ),
+    'Casey':    ( 550, 50, 'Water', 2, BuffSelf( dmgMult=1.2 ), MagicMissile( nukeMult=1.50, N=1 ) ),
+    'Charlie':  ( 550, 200, 'Water', 2, BuffSelf( dmgMult=1.2 ), MagicMissile( nukeMult=1.50, N=3 ) ),
     'Boss':     ( 2000, 200, 'Fire', 3, UndividedAOE( aoeMult=1.0 ) ),
     'David':    ( 1000, 100, 'Water', 1, BuffSelfAfterN( dmgFlat=100, N=1 ) ),
+    'The Darkness': ( 1000, 50, 'Lightning', 5, BuffSelf( hpFlat=50 ), NukeSingle( nukeMult=1.10, N=5 ) ),
     }
 
 ################################################################################
-## Battle board
+## Adventure
+################################################################################
+def mkCreature( name, cds ):   return Creature( name, *CREATURE_DB[ name ], useCooldowns=cds )
+def mkCreatures( names, cds ): return [ mkCreature( name, cds ) for name in names ]
+
+class Adventure:
+    '''Represents a series of battles with persisted creature state'''
+    def __init__( self, party ):
+        self.testType = TEST_TYPE
+        self.party = party
+        self.encounterNumber = 0
+
+        self.preAdventure()
+
+    def run( self ):
+        for e in self.getNextEncounter():
+            cprint( 'Begining new battle', 'green' )
+            self.encounterNumber += 1
+            b = Battle( self.party, e, self.testType, self.encounterNumber )
+            b.run()
+
+            if b.isLost:
+                cprint( 'After %d battles, you have failed the adventure' % self.encounterNumber, 'red' )
+                return
+        cprint( 'After %d battles, you have won the adventure!' % self.encounterNumber, 'green' )
+        self.postAdventure()
+
+    # these are meant to be overridden
+    def preAdventure( self ): pass
+    def postAdventure( self ): pass
+    def getNextEncounter( self ): yield
+
+class SingleBattleAdventure( Adventure ):
+    def getNextEncounter( self ):
+        yield mkCreatures([ 'Alice', 'Charlie', 'David' ], cds= True )
+
+class ThreeTrashAndBossAdventure( Adventure ):
+    def getNextEncounter( self ):
+        yield mkCreatures([ 'Alice', 'Alice' ], cds= True )
+        yield mkCreatures([ 'Bob', 'Bob' ], cds= True )
+        yield mkCreatures([ 'Alice', 'Bob', 'Charlie' ], cds= True )
+        yield mkCreatures([ 'Alice', 'Boss', 'Charlie', 'David' ], cds= True )
+
+################################################################################
+## Battle
 ################################################################################
 class Battle:
-    def __init__( self ):
+    def __init__( self, allies, enemies, testType, battleNumber=1 ):
+        self.battleNumber = battleNumber
         self.numRounds = 0
         self.testOptions = {1:None, 2:None, 3:None, 4:None }
-        #self.testType = 'NoTest'
-        self.testType = 'Anki'
+        self.testType = testType
 
-        self.allies  = self.mkCreatures([ 'Alice', 'Alice', 'Bob', 'Charlie' ], cds= self.testType == 'NoTest' )
-        self.enemies = self.mkCreatures([ 'Alice', 'Boss', 'Charlie', 'David' ], cds= True )
+        self.allies  = allies
+        self.enemies = enemies
 
         self.preBattle()
 
-    ##### Create creatures # these eventually will be arguments to Battle from the Adventure controller
-    def mkCreature( self, name, cds ):   return Creature( name, *CREATURE_DB[ name ], useCooldowns=cds )
-    def mkCreatures( self, names, cds ): return [ self.mkCreature( name, cds ) for name in names ]
-
-
     def show( self ):
-        banner = ( ' Round %d ' % self.numRounds ).center( 80, '#' )
+        banner = ( ' Battle %d - Round %d ' % ( self.battleNumber, self.numRounds ) ).center( 80, '#' )
         opts = ' '.join( '%d %s' % x for x in self.testOptions.iteritems() )
         return '\n'.join([
               colored( banner, 'magenta' )
@@ -321,6 +368,14 @@ class Battle:
             , ''
             ])
 
+    ##### State
+    @property
+    def isLost( self ): return all( not c.isAlive for c in self.allies )
+    @property
+    def isWon( self ):  return all( not c.isAlive for c in self.enemies )
+    @property
+    def isOver( self ): return self.isWon or self.isLost
+
     ##### Test Options
     def refillTestOptions( self ):
         for k,v in self.testOptions.items():
@@ -331,9 +386,9 @@ class Battle:
 
     ##### Pre-battle
     def preBattle( self ):
-        self.applyPassives()
+        for c in self.allies + self.enemies:
+            c.preBattleInit()
 
-    def applyPassives( self ):
         for c in self.allies + self.enemies:
             c.doPassives()
 
@@ -342,11 +397,10 @@ class Battle:
         # report stats like kills, drops, persist/reset creature hp/charges etc as needed
         print self.show()
 
-        if all( not c.isAlive for c in self.enemies ):
-            print 'All enemies are defeated'
-        if all( not c.isAlive for c in self.allies ):
-            print 'All allies are defeated'
-
+        if self.isWon:
+            cprint( 'All enemies are defeated', 'green' )
+        if self.isLost:
+            cprint( 'All allies are defeated', 'red' )
 
     ##### Battle
     def nonInteractiveREPL( self ):
@@ -377,9 +431,7 @@ class Battle:
 
     def run( self ):
         '''Run battle step() until one side is defeated'''
-        while True:
-            if all( not c.isAlive for c in self.enemies ) or all( not c.isAlive for c in self.allies ):
-                break
+        while not self.isOver:
             self.step()
         self.postBattle()
 
@@ -448,36 +500,48 @@ class Creature:
     NEXT_ID = itertools.count(0)
 
     def __init__( self, name, hp, atk, atkType, atkCooldown, answerSkill=None, specialSkill=None, passives=None, useCooldowns=True ):
-        self.name = name
-        self.id = Creature.NEXT_ID.next()
+        self.name   = name
+        self.id     = Creature.NEXT_ID.next()
         self.idname = '%d %10s' % ( self.id, '[%s]' % self.name )
 
         self._maxHP = hp
         self._curHP = hp
+
+        self._atk        = atk
+        self.atkType     = atkType
+        self.atkCooldown = atkCooldown if useCooldowns else 0
+
+        # these instances are not specific to this creature but will be replaced later
+        self.answerSkill  = answerSkill
+        self.specialSkill = specialSkill
+        self._passives    = passives
+
+        self.fullReset()
+
+    def fullReset( self ):
+        '''Clear all buffs, reset atk cooldown, reset target, remove dmg, reset skills'''
+        self.preBattleInit()
+
         self._hp_dmg_taken = 0
-        self.wasAlive = True # whether we were alive last round; mostly used to see when buffs die out
+        self.wasAlive      = True # whether was alive last round; used for buff upkeep
 
-        self._atk = atk
-        self.atkType = atkType
-        if not useCooldowns: atkCooldown = 0 # disable cooldown mechanism if directed
-        self.atkCooldown = atkCooldown
-        self.atkTTA      = atkCooldown # Turns Til next Attack
+        self.answerSkill  = self.answerSkill.new( self ) if self.answerSkill else None
+        self.specialSkill = self.specialSkill.new( self ) if self.specialSkill else None
+        self._passives    = [ p.new( self ) for p in self._passives ] if self._passives else []
 
-        self._allies = []
-        self._enemies = []
-        self.suggestedTarget = None
-
-        self.answerSkill = answerSkill.new( self ) if answerSkill else None
-        self.specialSkill = specialSkill.new( self ) if specialSkill else None
-        self._numAnsweredCorrectly = 0
+        self._numAnsweredCorrectly       = 0
         self._numAnsweredCorrectlyInARow = 0
-        self._numASproced = 0
-        self._numASprocedInARow = 0
+        self._numASproced                = 0
+        self._numASprocedInARow          = 0
 
-        self._passives = [ p.new( self ) for p in passives ] if passives is not None else []
+    def preBattleInit( self ):
+        '''Clear all buffs, reset atk cooldown, reset target'''
+        self.buffs  = Buffs()
+        self.atkTTA = self.atkCooldown # turns til next attack
 
-        self.buffs = Buffs()
-
+        self._allies         = []
+        self._enemies        = []
+        self.suggestedTarget = None
 
     def preRoundUpdate( self, allies, enemies ):
         '''Update list of ally and enemy creatures, reduce atk cooldowns, and update buffs'''
@@ -485,7 +549,7 @@ class Creature:
 
         self.atkTTA = max( 0, self.atkTTA - 1 )
 
-        self._allies = allies
+        self._allies  = allies
         self._enemies = enemies
 
         self.buffs._update()
@@ -613,14 +677,10 @@ class Creature:
 ## Driver / Tests
 ################################################################################
 def main():
-    b = Battle()
-    b.run()
-    return
-    b.step()
-    b.step()
-    b.step()
-    b.step()
-    b.step()
-    b.step()
+    party = mkCreatures([ 'Alice', 'Alice', 'Bob', 'Bob', 'Casey', 'David' ], cds= TEST_TYPE == 'NoTest' )
+    #a = Adventure( party )
+    #a = SingleBattleAdventure( party )
+    a = ThreeTrashAndBossAdventure( party )
+    a.run()
 
 if __name__ == '__main__': main()
