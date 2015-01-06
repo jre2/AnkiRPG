@@ -19,3 +19,10 @@ These are supported by AnkiRPG:
 
 1. AnkiRPG - The test is reviewing a flashcard in Anki, and the color option is the card's model/deck (ie. "category").
 2. NoTest - There is no player performed test/color and instead party members use simple cooldowns for attacks. This is what computer opponents use.
+
+Install
+-------
+You need:
+* python2.7
+* termcolor (https://pypi.python.org/pypi/termcolor)
+* colorama (https://pypi.python.org/pypi/colorama) [Only on Windows and only if you want color]
