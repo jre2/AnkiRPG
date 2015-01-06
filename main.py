@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
+import cmd
 #import colorama; colorama.init() # this makes termcolor work on windows
 import itertools
 from operator import mul
 from termcolor import colored, cprint
 
 '''TODO
-* REPL with player targetting, SS activation, and category selection
 * External interaction with Anki (show review, get feedback)
 * Extend Battle to get config from adventure
   - start with a simple trash encounter + boss fight style adventures, refactoring Battle as needed
@@ -19,12 +19,86 @@ from termcolor import colored, cprint
 ## Debug
 ################################################################################
 DEBUG_TARGETTING = True
+DEBUG_NON_INTERACTIVE = False
+
 def debug( txt ): print colored( txt, 'white', 'on_blue' )
 
 ################################################################################
-## Hofs
+## Non-program specific utilities and hofs
 ################################################################################
 def product( xs ): return reduce( mul, xs, 1 )
+
+def weightedChoice( cws ): # [(Choice,Weight)] -> Rand Choice
+    from random import random
+    from bisect import bisect
+
+    values, weights = zip(*cws)
+    total = 0
+    cum_weights = []
+    for w in weights:
+        total += w
+        cum_weights.append(total)
+    x = random() * total
+    i = bisect(cum_weights, x)
+    return values[i]
+
+
+################################################################################
+## CLI
+################################################################################
+class BattleCLI( cmd.Cmd ):
+    def __init__( self, battle, *args, **kwargs ):
+        self.battle = battle
+        cmd.Cmd.__init__( self, *args, **kwargs )
+
+    def preloop( self ):
+        print self.battle.show()
+
+    def do_show( self, line ):
+        '''Displays the current battle status'''
+        print self.battle.show()
+
+    def do_choose( self, optStr ):
+        '''Choose a test option by providing it's number
+        Ex: choose 3
+        '''
+        try:
+            optNum = int( optStr )
+            opt = self.battle.testOptions[ optNum ]
+            self.battle.testOptions[ optNum ] = None
+
+            print 'Choosing option', opt
+            self.chosenOption = opt # the return isn't threaded through to cmdloop's return, which makes this ugly
+            return True
+        except (KeyError,ValueError):
+            print 'Invalid option number', optStr
+
+    def do_special( self, cidStr ):
+        '''Use special of the given creature id number
+        Ex: `special 3` activates the special skill of the 4th creature
+        '''
+        try:
+            cid = int( cidStr )
+            c = [ a for a in self.battle.allies + self.battle.enemies if a.id == cid ][0]
+
+            if c not in self.battle.allies:
+                print "That creature doesn't belong to you"
+                return
+            if not c.isAlive:
+                print "That creature isn't alive"
+                return
+            if not c.specialSkill:
+                print "That creature doesn't have a special skill"
+                return
+            if not c.specialSkill.canActivate():
+                print "That creature's special isn't ready"
+                return
+
+            debug( 'ACTIVATE: %s' % c.idname )
+            c.specialSkill.onActivate()
+
+        except (ValueError,IndexError):
+            print 'Invalid creature id', cidStr
 
 ################################################################################
 ## Skills and Buffs
@@ -100,7 +174,8 @@ class Skill:
             self._numASprocedInARow -= 1
 
     def __str__( self ):
-        return '<%s:%s>' % (self.__class__.__name__, self.kwargs)
+        specialCharged = '!' if self.canActivate() else ''
+        return '<%s%s:%s>' % ( specialCharged, self.__class__.__name__, self.kwargs )
 
     # this hook runs before attack phase iff proced
     def onAnswer( self ): pass
@@ -109,7 +184,7 @@ class Skill:
 
     # this is checked during user REPL; no side-effects allowed
     def canActivate( self ): return False
-    # this hook runs when user requests
+    # this hook runs when user requests; return False if no effect
     def onActivate( self ): pass
 
 class BuffSelf( Skill ): # BuffParams
@@ -173,12 +248,24 @@ class BuffSelfAfterN( Skill ): # BuffParams, N
 class NukeSingle( Skill ): # nukeMult, N
     def canActivate( self ): return self._numASproced >= self.N
     def onActivate( self ):
-        self._numASproced = 0
+        dmg = self.me.atk * self.nukeMult
+        e = self.me.getTarget()
+        if e:
+            e.takeDamage( dmg, self.me.atkType )
+            self._numASproced = 0
+        else:
+            return False
 
+class NukeAOE( Skill ): # nukeMult, N
+    def canActivate( self ): return self._numASproced >= self.N
+    def onActivate( self ):
         dmg = self.me.atk * self.nukeMult
         es = [ e for e in self.me.enemies if e.isTargettable ]
         for e in es:
             e.takeDamage( dmg, self.me.atkType )
+        else:
+            return False
+        self._numASproced = 0
 
 class PassiveBuffSelf( Skill ): # BuffParams
     def onPassive( self ):
@@ -214,7 +301,12 @@ class Battle:
         self.allies  = self.mkCreatures([ 'Alice', 'Alice', 'Bob', 'Charlie' ], cds= self.testType == 'NoTest' )
         self.enemies = self.mkCreatures([ 'Alice', 'Boss', 'Charlie', 'David' ], cds= True )
 
-        self.onBattleStart()
+        self.preBattle()
+
+    ##### Create creatures # these eventually will be arguments to Battle from the Adventure controller
+    def mkCreature( self, name, cds ):   return Creature( name, *CREATURE_DB[ name ], useCooldowns=cds )
+    def mkCreatures( self, names, cds ): return [ self.mkCreature( name, cds ) for name in names ]
+
 
     def show( self ):
         banner = ( ' Round %d ' % self.numRounds ).center( 80, '#' )
@@ -229,38 +321,67 @@ class Battle:
             , ''
             ])
 
-    def mkCreature( self, name, cds ):   return Creature( name, *CREATURE_DB[ name ], useCooldowns=cds )
-    def mkCreatures( self, names, cds ): return [ self.mkCreature( name, cds ) for name in names ]
-
+    ##### Test Options
     def refillTestOptions( self ):
         for k,v in self.testOptions.items():
             if not v:
                 self.testOptions[k] = self.mkTestOption()
 
-    def mkTestOption( self ):
-        def weightedChoice( cws ): # [(Choice,Weight)] -> Rand Choice
-            from random import random
-            from bisect import bisect
+    def mkTestOption( self ): return weightedChoice( [ ('Fire',25), ('Water',25), ('Lightning',25), ('Fire/Water',7), ('Fire/Lightning',7), ('Water/Lightning',7), ('Fire/Water/Lightning',4) ] )
 
-            values, weights = zip(*cws)
-            total = 0
-            cum_weights = []
-            for w in weights:
-                total += w
-                cum_weights.append(total)
-            x = random() * total
-            i = bisect(cum_weights, x)
-            return values[i]
-
-        c = weightedChoice( [ ('Fire',25), ('Water',25), ('Lightning',25), ('Fire/Water',7), ('Fire/Lightning',7), ('Water/Lightning',7), ('Fire/Water/Lightning',4) ] )
-        return c
-
-    def onBattleStart( self ):
+    ##### Pre-battle
+    def preBattle( self ):
         self.applyPassives()
 
     def applyPassives( self ):
         for c in self.allies + self.enemies:
             c.doPassives()
+
+    ##### Post-battle
+    def postBattle( self ):
+        # report stats like kills, drops, persist/reset creature hp/charges etc as needed
+        print self.show()
+
+        if all( not c.isAlive for c in self.enemies ):
+            print 'All enemies are defeated'
+        if all( not c.isAlive for c in self.allies ):
+            print 'All allies are defeated'
+
+
+    ##### Battle
+    def nonInteractiveREPL( self ):
+        '''Show status, activate specials asap, choose test option randomly'''
+        print self.show()
+
+        # activate specials asap
+        for c in self.allies:
+            if c.isAlive and c.specialSkill and c.specialSkill.canActivate():
+                c.specialSkill.onActivate()
+                debug( 'ACTIVATE: %s' % c.idname )
+
+        # choosen test option randomly
+        from random import randint
+        n = randint( 1, 4 )
+
+        chosenOption = self.testOptions[ n ]
+        self.testOptions[ n ] = None
+        debug( 'OPTION: %s' % chosenOption )
+        return chosenOption
+
+    def interactiveREPL( self ):
+        '''Interactive CLI for player to operate displaying status,
+        activating specials, and choosing test options'''
+        cli = BattleCLI( self )
+        cli.cmdloop()
+        return cli.chosenOption
+
+    def run( self ):
+        '''Run battle step() until one side is defeated'''
+        while True:
+            if all( not c.isAlive for c in self.enemies ) or all( not c.isAlive for c in self.allies ):
+                break
+            self.step()
+        self.postBattle()
 
     def step( self ):
         '''
@@ -280,22 +401,11 @@ class Battle:
         # 2. (re)generate test options
         self.refillTestOptions()
 
-        # 3-5. TODO: CLI repl to handle user target suggestion and SS activation until category selection
-        print self.show()
-
-            # choosen random category
-        from random import randint
-        n = randint( 1, 4 )
-
-        chosenOption = self.testOptions[ n ]
-        self.testOptions[ n ] = None
-        debug( 'OPTION: %s' % chosenOption )
-
-            # activate specials randomly
-        for c in self.allies:
-            if c.isAlive and c.specialSkill and c.specialSkill.canActivate():
-                c.specialSkill.onActivate()
-                debug( 'ACTIVATE: %s' % c.idname )
+        # 3-5. handle user target suggestion, SS activation, and test option selection
+        if DEBUG_NON_INTERACTIVE:
+            chosenOption = self.nonInteractiveREPL()
+        else:
+            chosenOption = self.interactiveREPL()
 
         # 6. user-test
         testPassed = True
@@ -504,6 +614,8 @@ class Creature:
 ################################################################################
 def main():
     b = Battle()
+    b.run()
+    return
     b.step()
     b.step()
     b.step()
