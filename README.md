@@ -46,8 +46,9 @@ main.py invokes the game, which currently caters to running a single adventure w
   * [future] Let player configure various decks he wants to use as categories for Player Test options
 * Creature collection progression and management
   * Adventures should reward xp for creatures in party or give you new creatures, which can then be combined with others to create new/better/different ones (a la Shin Megami Tensei).
+    * This also requires modifying creature stats based on level (perhaps a logarithmic factor) and have creature database describe how evolving/combining works.
   * Allow player to control which creatures are in his active party
-  * Persist progress across games. At least collection, but possible Adventure/Battle state as well.
+  * Persist progress across games. At least collection, but possibly Adventure/Battle state as well.
 * Quest hub with various adventures for the player to choose from
   * Random adventure of a user specified difficulty level
   * Handmade sequences of adventures with some element of story and/or progression to them
