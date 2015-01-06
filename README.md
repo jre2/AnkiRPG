@@ -27,8 +27,8 @@ These are supported by AnkiRPG:
 -------------
 You need:
 * python2.7
-* termcolor (https://pypi.python.org/pypi/termcolor)
-* colorama (https://pypi.python.org/pypi/colorama) [Only on Windows and only if you want color]
+* ~~termcolor (https://pypi.python.org/pypi/termcolor)~~
+* ~~colorama (https://pypi.python.org/pypi/colorama) [Only on Windows and only if you want color]~~
 
 AnkiRPGServer.py must be placed into your Anki addons directory. It creates a server to allow Anki to be remotely controlled. The port may be tweaked in the source if truly needed.
 
