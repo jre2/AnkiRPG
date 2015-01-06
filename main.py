@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
-
+    # external packages
+import colorama; colorama.init() # this makes termcolor work on windows
+from   termcolor import colored, cprint
+    # builtin
 import cmd
-#import colorama; colorama.init() # this makes termcolor work on windows
 import itertools
-from operator import mul
-from termcolor import colored, cprint
+from   operator import mul
 
 '''TODO
 * External interaction with Anki (show review, get feedback)
 * Collection, creature progression (levels/evolutions), and deck mangement
 * Quest hub with various adventures you can choose to go on
 '''
-
 
 ################################################################################
 ## Debug
