@@ -21,8 +21,8 @@ These are supported by AnkiRPG:
 2. NoTest - There is no player performed test/color and instead party members use simple cooldowns for attacks. This is what computer opponents use.
 
 
-## Playing
-----------
+## How to play
+--------------
 ##### Install
 -------------
 You need:
@@ -37,6 +37,14 @@ AnkiRPGServer.py must be placed into your Anki addons directory. It creates a se
 This is highly subject to change!
 
 main.py invokes the game, which currently caters to running a single adventure with a preset party and then exiting. A global at the top control whether to allow the player to control their party or to have it run the combats in a non-interactive fashion according to a basic AI (for ease of testing). Another controls whether to use the 'Anki' or 'NoTest' method for player tests.
+
+##### Combat
+-------------
+Each round you may use your creatures' Special Skills (if charged), suggest an enemy for them to target (otherwise they'll use a basic AI to determine their best target), and eventually choose a player test option representing a color and category. Any of your creatures that share that color will attack this round if you pass the test.
+
+At this point, Anki is focused and you are presented with a card to review/learn, which is from a deck and/or model based on the chosen option's category (not implemented yet). If successful, the aforementioned creatures get to attack. Also, all creatures have an Answer Skill that activates automatically when a test is answered particularly well, which in the case of AnkiRPG means the Anki rep was performed very quickly (not implemented yet).
+
+Then the enemy attacks and the next round begins. This cycle continues until one side is completely defeated. If you were successful, you continue the adventure. If you were defeated, you fail the adventure.
 
 ## TODO
 -------
