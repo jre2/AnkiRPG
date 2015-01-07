@@ -2,11 +2,11 @@
 #-*- coding: utf-8 -*-
 
 import json, socket
-import win32gui, win32con, re
+#import win32gui, win32con, re
 import time
 
-#ADDR = "192.168.1.19"
-ADDR = 'localhost'
+ADDR = "192.168.1.19"
+#ADDR = 'localhost'
 PORT = 2112
 ANKI_TITLE_PAT = 'Anki -'
 
@@ -49,9 +49,9 @@ def send( data ):
     return json.loads( r )
 
 def cmd( data ):
-    focus( ANKI_TITLE_PAT )
+    #focus( ANKI_TITLE_PAT )
     r = send( data )
-    unfocus( ANKI_TITLE_PAT )
+    #unfocus( ANKI_TITLE_PAT )
     print '%s -----> %s' % ( data, r )
 
 def main():
