@@ -59,6 +59,9 @@ class AIPlayer( Player ):
 
 class HumanNoTestPlayer( HumanPlayer ):
     PlayerTest = NoTest
-
+class HumanCooldownTestPlayer( HumanPlayer ):
+    PlayerTest = CooldownTest
+class AINoTestPlayer( AIPlayer ):
+    PlayerTest = NoTest
 class AIAnkiTestPlayer( AIPlayer ):
     PlayerTest = AnkiTest
