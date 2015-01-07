@@ -17,8 +17,9 @@ These are popular types in the genre:
 
 These are supported by AnkiRPG:
 
-1. AnkiRPG - The test is reviewing a flashcard in Anki, and the color option is the card's model/deck (ie. "category").
-2. NoTest - There is no player performed test/color and instead party members use simple cooldowns for attacks. This is what computer opponents use.
+1. AnkiTest - The test is reviewing a flashcard in Anki, and the color option is the card's model/deck (ie. "category").
+2. NoTest - There is no test performed (ie. test always passes). Color options don't signify anything.
+3. CooldownTest - There is no test performed and it's treated as if all colors are always trigged. However, creatures obey cooldowns for attacks. This is what computer opponents use.
 
 
 ## How to play
@@ -28,16 +29,26 @@ These are supported by AnkiRPG:
 You need:
 * python 2.7
 * Anki 2.0.31+
-* ~~termcolor (https://pypi.python.org/pypi/termcolor)~~
-* ~~colorama (https://pypi.python.org/pypi/colorama) [Only on Windows and only if you want color]~~
 
-AnkiRPGServer.py must be placed into your Anki addons directory. It creates a server to allow Anki to be remotely controlled. The port may be tweaked in the source if truly needed.
+For reference, these external packages are automatically included:
+* termcolor (https://pypi.python.org/pypi/termcolor)
+* colorama (https://pypi.python.org/pypi/colorama)
+
+AnkiRPGServer.py must be placed into your Anki addons directory. It creates a server to allow Anki to be remotely controlled. The port may be tweaked in the source if needed.
 
 ##### Usage
 -----------
 This is highly subject to change!
 
-main.py invokes the game, which currently caters to running a single adventure with a preset party and then exiting. A global at the top control whether to allow the player to control their party or to have it run the combats in a non-interactive fashion according to a basic AI (for ease of testing). Another controls whether to use the 'Anki' or 'NoTest' method for player tests.
+main.py invokes the game, which currently caters to running a single adventure with a preset party and then exiting.
+
+With a bit of alteration, you can choose to start the adventure as:
+* HumanPlayer: You test yourself with Anki reps and make your own combat decisions. (50% Game, 50% Anki)
+* HumanNoTestPlayer: You auto-pass tests and make your own combat decisions. (100% Game)
+* HumanCooldownTestPlayer: You attack based on cooldowns instead of color tests and make your own combat decisions. (100% Game)
+* AIPlayer: Computer controls your party according to cooldowns. (0% All; Useful for testing AnkiRPG)
+* AINoTestPlayer: Computer controls your party according to colors. (0% All; Useful for benchmarking your party's power)
+* AIAnkiTestPlayer: You use Anki but the computer makes combat decisions. (100% Anki)
 
 ##### Combat
 -------------
