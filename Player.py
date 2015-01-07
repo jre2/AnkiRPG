@@ -14,10 +14,12 @@ class Player:
         if names: self.setCreatures( names )
 
     def setCreatures( self, names ):
-        self.party = mkCreatures( names, cds= self.playerTest.useCooldowns() )
+        self.party = mkCreatures( names, cds= self.useCooldowns() )
 
     @property
     def isAlive( self ): return any( c.isAlive for c in self.party )
+
+    def useCooldowns( self ): return self.playerTest.useCooldowns()
 
     def takeTurn( self, battle ):
         '''Handle assigning targets, activating specials, and performing player test
@@ -34,6 +36,8 @@ class Player:
 class HumanPlayer( Player ):
     #PlayerTest = AnkiTest
     PlayerTest = NoTest
+
+    def useCooldowns( self ): return False # override NoTest's setting
 
     def takeTurn( self, battle ):
         cli = BattleCLI( self, battle )
