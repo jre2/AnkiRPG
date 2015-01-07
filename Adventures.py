@@ -1,14 +1,14 @@
 #-*- coding: utf-8 -*-
 from   Adventure import Adventure
-from   Creatures import mkCreatures
+from   Player    import AIPlayer
 
 class SingleBattleAdventure( Adventure ):
     def getNextEncounter( self ):
-        yield mkCreatures([ 'Alice', 'Charlie', 'David' ], cds= True )
+        yield AIPlayer([ 'Alice', 'Charlie', 'David' ])
 
 class ThreeTrashAndBossAdventure( Adventure ):
     def getNextEncounter( self ):
-        yield mkCreatures([ 'Alice', 'Alice' ], cds= True )
-        yield mkCreatures([ 'Bob', 'Bob' ], cds= True )
-        yield mkCreatures([ 'Alice', 'Bob', 'Charlie' ], cds= True )
-        yield mkCreatures([ 'Alice', 'Boss', 'Charlie', 'David' ], cds= True )
+        yield AIPlayer([ 'Alice', 'Alice' ])
+        yield AIPlayer([ 'Bob', 'Bob' ])
+        yield AIPlayer([ 'Alice', 'Bob', 'Charlie' ])
+        yield AIPlayer([ 'Alice', 'Boss', 'Charlie', 'David' ])

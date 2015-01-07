@@ -3,13 +3,14 @@
 
 from   Adventures import *
 from   Config     import TEST_TYPE
+from   Player     import *
 from   Creatures  import *
 
 def main():
-    party = mkCreatures([ 'Alice', 'Alice', 'Bob', 'Bob', 'Casey', 'David' ], cds= TEST_TYPE == 'NoTest' )
-    #a = Adventure( party )
-    #a = SingleBattleAdventure( party )
-    a = ThreeTrashAndBossAdventure( party )
+    #p = AIPlayer( [ 'Alice', 'Alice', 'Bob', 'Bob', 'Casey', 'David' ] )
+    #a = ThreeTrashAndBossAdventure( p )
+    p = HumanPlayer( [ 'Alice', 'Alice', 'Bob', 'Bob', 'Casey', 'David' ] )
+    a = SingleBattleAdventure( p )
     a.run()
 
 if __name__ == '__main__': main()

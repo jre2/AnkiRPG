@@ -1,17 +1,22 @@
 #-*- coding: utf-8 -*-
 import cmd
+from   Utils import debug
+#TODO: clear screen between rounds ?
 
 class BattleCLI( cmd.Cmd ):
-    def __init__( self, battle, *args, **kwargs ):
+    def __init__( self, player, battle, *args, **kwargs ):
+        self.player = player
         self.battle = battle
         cmd.Cmd.__init__( self, *args, **kwargs )
 
     def preloop( self ):
-        print self.battle.show()
+        print self.battle.show( self.player )
+        print self.player.playerTest.show()
 
     def do_show( self, line ):
         '''Displays the current battle status'''
-        print self.battle.show()
+        print self.battle.show( self.player )
+        print self.player.playerTest.show()
 
     def do_choose( self, optStr ):
         '''Choose a test option by providing it's number
@@ -19,11 +24,11 @@ class BattleCLI( cmd.Cmd ):
         '''
         try:
             optNum = int( optStr )
-            opt = self.battle.testOptions[ optNum ]
-            self.battle.testOptions[ optNum ] = None
+            color = self.player.playerTest.testOptions[ optNum ][0]
 
-            print 'Choosing option', opt
-            self.chosenOption = opt # the return isn't threaded through to cmdloop's return, which makes this ugly
+            # the return isn't threaded through to cmdloop's return, so store on attr
+            print 'Choosing option %d: %s' % ( optNum, color )
+            self.chosenTestOption = optNum
             return True
         except (KeyError,ValueError):
             print 'Invalid option number', optStr
@@ -34,9 +39,9 @@ class BattleCLI( cmd.Cmd ):
         '''
         try:
             cid = int( cidStr )
-            c = [ a for a in self.battle.allies + self.battle.enemies if a.id == cid ][0]
+            c = self.battle.creatureById( cid )
 
-            if c not in self.battle.allies:
+            if c not in self.player.party:
                 print "That creature doesn't belong to you"
                 return
             if not c.isAlive:
