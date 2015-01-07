@@ -1,5 +1,4 @@
 #-*- coding: utf-8 -*-
-
 from   BattleCLI   import BattleCLI
 from   Creatures   import mkCreatures
 from   PlayerTests import *
@@ -34,10 +33,7 @@ class Player:
         return ( [], False, False )
 
 class HumanPlayer( Player ):
-    #PlayerTest = AnkiTest
-    PlayerTest = NoTest
-
-    def useCooldowns( self ): return False # override NoTest's setting
+    PlayerTest = AnkiTest
 
     def takeTurn( self, battle ):
         cli = BattleCLI( self, battle )
@@ -45,7 +41,7 @@ class HumanPlayer( Player ):
         return self.playerTest.doTest( cli.chosenTestOption )
 
 class AIPlayer( Player ):
-    PlayerTest = NoTest
+    PlayerTest = CooldownTest
 
     def takeTurn( self, battle ):
         #print battle.show( self )
@@ -60,3 +56,9 @@ class AIPlayer( Player ):
         from random import choice
         optNum = choice( self.playerTest.testOptions.keys() )
         return self.playerTest.doTest( optNum )
+
+class HumanNoTestPlayer( HumanPlayer ):
+    PlayerTest = NoTest
+
+class AIAnkiTestPlayer( AIPlayer ):
+    PlayerTest = AnkiTest

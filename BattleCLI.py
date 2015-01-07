@@ -1,7 +1,7 @@
 #-*- coding: utf-8 -*-
 import cmd
 from   Utils import debug
-#TODO: clear screen between rounds ?
+#IDEA: clear screen between rounds ?
 
 class BattleCLI( cmd.Cmd ):
     def __init__( self, player, battle, *args, **kwargs ):

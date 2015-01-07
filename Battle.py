@@ -3,7 +3,7 @@ from   BattleCLI import BattleCLI
 from   Config    import DEBUG_NON_INTERACTIVE
 from   Utils     import colored, cprint, debug
 
-#TODO: handle teams of players and victory conditions other than Last Man Standing
+#IDEA: handle teams of players and victory conditions other than Last Man Standing
 
 class Battle:
     def __init__( self, players, battleNumber=1 ):
@@ -70,7 +70,7 @@ class Battle:
         # have each player take turns
         for p in self.players:
             ( colors, testPassed, asProced ) = p.takeTurn( self )
-            acting = [ c for c in p.party if c.canAttack and c.atkType in colors ]
+            acting = [ c for c in p.party if testPassed and c.canAttack and c.atkType in colors ]
             for c in p.party: c.testUpdate( testPassed, asProced, c in acting )
             for c in acting:  c.onAnswer()
             for c in acting:  c.doAttack( asProced )

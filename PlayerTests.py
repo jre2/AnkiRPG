@@ -1,5 +1,7 @@
 #-*- coding: utf-8 -*-
-from   Utils import colored, debug, weightedChoice
+from   Config import ANKI_ADDR, ANKI_PORT
+from   Utils import  colored, debug, weightedChoice
+import json, socket, time
 
 class Test: # virtual
     def __init__( self ):
@@ -39,12 +41,34 @@ class Test: # virtual
     def _mkCategory( self, color ):  return 'UnnamedCategory'
     def _doTest( self, color, cat ): return ( False, False )
 
-class NoTest( Test ):
+class CooldownTest( Test ):
     def useCooldowns( self ):        return True
+    def doTest( self, optNum ):      return ( 'Fire/Water/Lightning', True, True )
+
+class NoTest( Test ):
     def _doTest( self, color, cat ): return ( True, True )
 
 class AnkiTest( Test ):
-    def useCooldowns( self ):        return False
+    def send( self, data ):
+        self.sock = s = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
+        s.connect( ( ANKI_ADDR, ANKI_PORT ) )
+        s.sendall( json.dumps( data ) )
+
+    def recv( self ):
+        r = self.sock.recv( 4096 ) #TODO: fetch entire msg in robust fashion
+        return json.loads( r )
+
+    def cmd( self, data ):
+        self.send( data )
+        r = self.recv()
+        self.sock.close()
+        return r
+
     #TODO: categories based on decks and/or models
-    #def _mkCategory( self, color ): return 'UnnamedCategory'
-    def _doTest( self, color, cat ): return ( True, True )
+    def _mkCategory( self, color ): return 'UnnamedCategory'
+
+    def _doTest( self, color, cat ):
+        r = self.cmd( {'cmd':'go review once'} )
+
+        if r['ease'] > 1: return ( True, True )
+        else:             return ( False, False )
