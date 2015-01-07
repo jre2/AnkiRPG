@@ -60,10 +60,6 @@ Then the enemy attacks and the next round begins. This cycle continues until one
 
 ## TODO
 -------
-* External interaction with Anki
-  * Tell Anki server plugin to do card rep and reply with user's selected ease, which will be used as Player Test result. Currently the player just auto succeeds player tests.
-  * [future] Suggest to Anki to review due card vs learn new card, based on whether Player Test option is double/tri colored
-  * [future] Let player configure various decks he wants to use as categories for Player Test options
 * Creature collection progression and management
   * Adventures should reward xp for creatures in party or give you new creatures, which can then be combined with others to create new/better/different ones (a la Shin Megami Tensei).
     * This also requires modifying creature stats based on level (perhaps a logarithmic factor) and have creature database describe how evolving/combining works.
@@ -73,7 +69,13 @@ Then the enemy attacks and the next round begins. This cycle continues until one
   * Random adventure of a user specified difficulty level
   * Handmade sequences of adventures with some element of story and/or progression to them
   * [future] Labyrinth with various encounters and treasures spread throughout. Find 3 keys to unlock boss room and complete.
+* [future] Enhanced external interaction with Anki
+  * Suggest to Anki to review due card vs learn new card, based on whether Player Test option is double/tri colored
+  * Let player configure various decks he wants to use as categories for Player Test options
 * [future] Multiplayer - tricky since ultimately we rely on the honor system for Player Test results
-  * Head to Head
+  * Head to Head - hot seat multiplayer already somewhat works
   * Tournament against ghosts of recent players / friends
   * Leaderboards
+* Combat
+  * Allow suggesting targets
+  * Add skills for manipulation of colors
