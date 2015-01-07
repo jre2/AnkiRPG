@@ -10,6 +10,18 @@ from anki.hooks import addHook, wrap
 from aqt.reviewer import Reviewer
 from aqt.utils import showCritical, showInfo, showWarning
 
+def takeFocus():
+    '''This works if Anki was minimized or if the foreground window gives us permission.
+    Ie. it doesn't work if we're non-minimized and simply lost focus'''
+    mw.setWindowState( mw.windowState() & ~QtCore.Qt.WindowMinimized | QtCore.Qt.WindowActive )
+    mw.activateWindow()
+    #mw.app.setActiveWindow( mw )
+    #mw.app.activeWindow().setFocus()
+
+def passFocus():
+    '''Pass focus back to client by minimizing ourself'''
+    mw.showMinimized()
+
 class AnkiServer( object ):
     def __init__( self, port=2112 ):
         self.logFile = open( os.path.join( mw.pm.profileFolder(), 'AnkiRPGServer.log' ), 'w' )
@@ -50,17 +62,20 @@ class AnkiServer( object ):
     def cmd_get_decks( self, data ): return mw.col.decks.allNames()
 
     def cmd_go_study( self, data ):
+        takeFocus()
         if 'deck' in data: mw.col.decks.select( mw.col.decks.id( data['deck'] ) )
         mw.onOverview()
         return "OK"
 
     def cmd_go_review( self, data ):
+        takeFocus()
         if 'deck' in data: mw.col.decks.select( mw.col.decks.id( data['deck'] ) )
         mw.col.startTimebox()
         mw.moveToState( 'review' )
         return "OK"
 
     def cmd_go_review_once( self, data ):
+        takeFocus()
         if 'deck' in data: mw.col.decks.select( mw.col.decks.id( data['deck'] ) )
         mw.col.startTimebox()
         mw.moveToState( 'review' )
@@ -85,6 +100,7 @@ def onCardAnswer( self, ease, _old=None ):
     # send notice to client
     mw.server.reply( {'card':self.card.id, 'ease':ease} )
     mw.server.notifyCardAnswer = False
+    passFocus()
 
 def startServer():
     mw.server = AnkiServer()
