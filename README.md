@@ -4,9 +4,9 @@ A turn based, color coded party, monster collecting, rpg for learning and memori
 
 #### Genre Overview
 -------------------
-Each turn, you perform a color coded "player test" among a number of options. If successful, members of your party bearing the same color as said option get to attack the enemy. If you fail, you lose your turn. Either way, the enemy responds in kind during their turn, though computer opponents have attack cooldowns instead of "player tests".
+Each turn, you perform a color coded "player test" among a number of options. If successful, members of your party bearing the same color as said option get to attack the enemy. If you fail, you lose your turn. Either way, the enemy then responds in kind during their turn, though computer opponents may have attack cooldowns instead of "player tests".
 
-In addition, progression primarily consists of party members being collected, leveled, evolved, and/or combined.
+Progression primarily consists of party members being collected, leveled, evolved, and/or combined.
 
 ##### Player Test Types
 -----------------------
