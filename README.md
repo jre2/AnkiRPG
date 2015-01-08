@@ -19,7 +19,7 @@ These are supported by AnkiRPG:
 
 1. AnkiTest - The test is reviewing a flashcard in Anki, and the color option is the card's model/deck (ie. "category").
 2. NoTest - There is no test performed (ie. test always passes). Color options don't signify anything.
-3. CooldownTest - There is no test performed and it's treated as if all colors are always trigged. However, creatures obey cooldowns for attacks. This is what computer opponents use.
+3. CooldownTest - There is no test performed and it's treated as if all colors are always trigged. However, creatures obey cooldowns for attacks. This is what computer opponents use by default.
 
 
 ## How to play
