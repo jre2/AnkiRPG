@@ -54,7 +54,7 @@ With a bit of alteration, you can choose to start the adventure as:
 -------------
 Each round you may use your creatures' Special Skills (if charged), suggest an enemy for them to target (otherwise they'll use a basic AI to determine their best target), and eventually choose a player test option representing a color and category. Any of your creatures that share that color will attack this round if you pass the test.
 
-At this point, Anki is focused and you are presented with a card to review/learn, which is from a deck and/or model based on the chosen option's category (not implemented yet). If successful, the aforementioned creatures get to attack. Also, all creatures have an Answer Skill that activates automatically when a test is answered particularly well, which in the case of AnkiRPG means the Anki rep was performed very quickly (not implemented yet).
+At this point, Anki is focused and you are presented with a card to review/learn, which is from a deck and/or model based on the chosen option's category (not implemented yet). If successful, the aforementioned creatures get to attack. Also, all creatures have an Answer Skill that activates automatically when a test is answered particularly well, which in the case of AnkiRPG means the Anki rep was performed very quickly (not implemented yet; Answer skills always fire).
 
 Then the enemy attacks and the next round begins. This cycle continues until one side is completely defeated. If you were successful, you continue the adventure. If you were defeated, you fail the adventure.
 
