@@ -42,9 +42,11 @@ class HumanPlayer( Player ):
 
 class AIPlayer( Player ):
     PlayerTest = CooldownTest
+    ShowBattle = False
 
     def takeTurn( self, battle ):
-        #print battle.show( self )
+        if self.ShowBattle:
+            print battle.show( self )
 
         # activate specials ASAP
         for c in self.party:
@@ -65,3 +67,4 @@ class AINoTestPlayer( AIPlayer ):
     PlayerTest = NoTest
 class AIAnkiTestPlayer( AIPlayer ):
     PlayerTest = AnkiTest
+    ShowBattle = True
